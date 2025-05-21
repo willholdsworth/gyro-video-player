@@ -65,6 +65,8 @@
             flex-direction: column;
             align-items: center;
             gap: 20px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
        
         #uploadButton {
@@ -76,6 +78,7 @@
             cursor: pointer;
             font-size: 18px;
             transition: background-color 0.3s;
+            margin-bottom: 20px;
         }
        
         #uploadButton:hover {
@@ -200,6 +203,24 @@
         body:hover #pointerLockMessage {
             opacity: 1;
         }
+        
+        #deviceInfo {
+            position: absolute;
+            top: 50px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        body:hover #deviceInfo {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -209,10 +230,13 @@
    
     <div id="uploadOverlay">
         <div id="uploadBox">
+            <input type="file" id="fileInput" accept="video/*">
+            <button id="uploadButton">Upload Video</button>
             <div id="instructions">
                 <h2><b>INSTRUCTIONS - PLEASE READ</b></h2>
                 <p>Start with the display in landscape orientation. At any point you can refresh the browser to start the setup process again.</p>
                 <br>
+                <h3>Desktop Setup:</h3>
                 <p>1. Open the Betterjoy app (🎮 Controller icon in bottom bar)</p>
                 <br>
                 <p>2. Wake the Joycon controller by pressing any button.</p>
@@ -229,10 +253,17 @@
                 <br>
                 <p>8. You can now turn off the mouse and let the video run. It will play in a loop until it is stopped.</p>
                 <br>
-                <p>To stop the video you can click anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to orient the video correctly the first time. The Betterjoy app can be annoying and not reopen if it's been closed. You can force close the app using task manager or restart the PC if this happens.</p>
+                <h3>Mobile Setup:</h3>
+                <p>1. Upload your video using the button above.</p>
+                <br>
+                <p>2. Lock your screen orientation to landscape before continuing.</p>
+                <br>
+                <p>3. Press the 'Enable Rotation' button to use your phone's gyroscope to control video rotation.</p>
+                <br>
+                <p>4. For best results, hold your phone in landscape orientation.</p>
+                <br>
+                <p>To stop the video you can tap anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to orient the video correctly.</p>
             </div>
-            <input type="file" id="fileInput" accept="video/*">
-            <button id="uploadButton">Upload Video</button>
         </div>
     </div>
    
@@ -240,6 +271,7 @@
         <button id="toggleRotationButton" class="control-button">Enable Rotation</button>
         <button id="resetButton" class="control-button">Reset Rotation</button>
         <button id="fullscreenButton" class="control-button">Fullscreen</button>
+        <button id="lockOrientationButton" class="control-button">Lock Orientation</button>
     </div>
    
     <div id="sensitivityControl">
@@ -249,6 +281,7 @@
    
     <div id="rotationInfo">Rotation: 0°</div>
     <div id="pointerLockMessage">Pointer Locked: No</div>
+    <div id="deviceInfo">Device: Desktop</div>
    
     <script>
         const videoElement = document.getElementById('videoElement');
@@ -258,10 +291,12 @@
         const toggleRotationButton = document.getElementById('toggleRotationButton');
         const resetButton = document.getElementById('resetButton');
         const fullscreenButton = document.getElementById('fullscreenButton');
+        const lockOrientationButton = document.getElementById('lockOrientationButton');
         const sensitivitySlider = document.getElementById('sensitivitySlider');
         const sensitivityLabel = document.getElementById('sensitivityLabel');
         const rotationInfo = document.getElementById('rotationInfo');
         const pointerLockMessage = document.getElementById('pointerLockMessage');
+        const deviceInfo = document.getElementById('deviceInfo');
         const controls = document.getElementById('controls');
         const sensitivityControl = document.getElementById('sensitivityControl');
         const body = document.body;
@@ -288,7 +323,96 @@
         let uiHidden = false;
         let pointerLocked = false;
         let lastUpdateTime = null;
-       
+        let isMobile = false;
+        let isOrientationLocked = false;
+        let initialGamma = null;
+        let lastGamma = null;
+        let gyroAvailable = false;
+        
+        function detectMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+        
+        isMobile = detectMobile();
+        deviceInfo.textContent = `Device: ${isMobile ? 'Mobile' : 'Desktop'}`;
+        
+        if (isMobile) {
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleOrientation, true);
+                gyroAvailable = true;
+            }
+            
+            if (lockOrientationButton) {
+                lockOrientationButton.style.display = 'block';
+            } else {
+                console.error('Lock orientation button not found');
+            }
+        } else {
+            if (lockOrientationButton) {
+                lockOrientationButton.style.display = 'none';
+            }
+        }
+        
+        lockOrientationButton.addEventListener('click', () => {
+            lockScreenOrientation();
+        });
+        
+        function lockScreenOrientation() {
+            if (!isMobile) return;
+            
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').then(() => {
+                        isOrientationLocked = true;
+                        lockOrientationButton.textContent = 'Orientation Locked';
+                        lockOrientationButton.classList.add('active');
+                    }).catch(err => {
+                        console.error('Screen orientation lock error:', err);
+                        alert('Failed to lock screen orientation. Please lock your device orientation manually.');
+                    });
+                } else if (screen.lockOrientation) {
+                    screen.lockOrientation('landscape');
+                    isOrientationLocked = true;
+                    lockOrientationButton.textContent = 'Orientation Locked';
+                    lockOrientationButton.classList.add('active');
+                } else {
+                    alert('Screen orientation lock not supported. Please lock your device orientation manually.');
+                }
+            } catch (err) {
+                console.error('Error locking orientation:', err);
+                alert('Failed to lock screen orientation. Please lock your device orientation manually.');
+            }
+        }
+        
+        function handleOrientation(event) {
+            if (!rotationEnabled || !isMobile) return;
+            
+            const now = Date.now();
+            
+            if (event.gamma === null) {
+                console.log('No gamma data available');
+                return;
+            }
+            
+            if (initialGamma === null) {
+                initialGamma = event.gamma;
+                lastGamma = event.gamma;
+                return;
+            }
+            
+            const currentGamma = event.gamma;
+            let gammaDelta = lastGamma - currentGamma;
+            
+            if (Math.abs(gammaDelta) > 0.1) {
+                const delta = gammaDelta * sensitivity * 2;
+                updateRotation(delta);
+                lastGamma = currentGamma;
+                lastUpdateTime = now;
+                isMouseMoving = true;
+                lastMouseMoveTime = now;
+            }
+        }
+        
         uploadButton.addEventListener('click', () => {
             fileInput.click();
         });
@@ -301,7 +425,6 @@
                 videoElement.load();
                
                 videoElement.addEventListener('loadedmetadata', () => {
-                    console.log('Video dimensions:', videoElement.videoWidth, 'x', videoElement.videoHeight);
                     videoElement.play().catch((err) => {
                         console.error('Error playing video:', err);
                     });
@@ -323,7 +446,7 @@
                                     'webkitPointerLockElement' in document;
        
         function requestPointerLock() {
-            if (pointerLockSupported) {
+            if (pointerLockSupported && !isMobile) {
                 videoContainer.requestPointerLock = videoContainer.requestPointerLock ||
                                                  videoContainer.mozRequestPointerLock ||
                                                  videoContainer.webkitRequestPointerLock;
@@ -332,7 +455,7 @@
         }
        
         function exitPointerLock() {
-            if (pointerLockSupported) {
+            if (pointerLockSupported && !isMobile) {
                 document.exitPointerLock = document.exitPointerLock ||
                                           document.mozExitPointerLock ||
                                           document.webkitExitPointerLock;
@@ -341,26 +464,30 @@
         }
        
         function handlePointerLockChange() {
-            if (document.pointerLockElement === videoContainer ||
-                document.mozPointerLockElement === videoContainer ||
-                document.webkitPointerLockElement === videoContainer) {
-                pointerLocked = true;
-                pointerLockMessage.textContent = 'Pointer Locked: Yes';
-                document.addEventListener('mousemove', handleLockedMouseMove, false);
-            } else {
-                pointerLocked = false;
-                pointerLockMessage.textContent = 'Pointer Locked: No';
-                document.removeEventListener('mousemove', handleLockedMouseMove, false);
-               
-                if (uiHidden) {
-                    showUI();
+            if (!isMobile) {
+                if (document.pointerLockElement === videoContainer ||
+                    document.mozPointerLockElement === videoContainer ||
+                    document.webkitPointerLockElement === videoContainer) {
+                    pointerLocked = true;
+                    pointerLockMessage.textContent = 'Pointer Locked: Yes';
+                    document.addEventListener('mousemove', handleLockedMouseMove, false);
+                } else {
+                    pointerLocked = false;
+                    pointerLockMessage.textContent = 'Pointer Locked: No';
+                    document.removeEventListener('mousemove', handleLockedMouseMove, false);
+                   
+                    if (uiHidden) {
+                        showUI();
+                    }
                 }
             }
         }
        
         function handlePointerLockError() {
-            console.error('Error requesting pointer lock');
-            pointerLockMessage.textContent = 'Pointer Lock Failed';
+            if (!isMobile) {
+                console.error('Error requesting pointer lock');
+                pointerLockMessage.textContent = 'Pointer Lock Failed';
+            }
         }
        
         document.addEventListener('pointerlockchange', handlePointerLockChange, false);
@@ -371,6 +498,8 @@
         document.addEventListener('webkitpointerlockerror', handlePointerLockError, false);
        
         function handleLockedMouseMove(e) {
+            if (isMobile) return;
+            
             const now = Date.now();
            
             mouseMovementDelta = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
@@ -389,6 +518,8 @@
         }
        
         document.addEventListener('mousemove', (e) => {
+            if (isMobile) return;
+            
             if (!pointerLocked) {
                 const now = Date.now();
                
@@ -419,7 +550,7 @@
         });
        
         document.addEventListener('mouseleave', () => {
-            if (rotationEnabled && !pointerLocked) {
+            if (!isMobile && rotationEnabled && !pointerLocked) {
                 isMouseMoving = false;
             }
         });
@@ -440,8 +571,9 @@
                 sensitivityControl.classList.add('hidden');
                 rotationInfo.classList.add('hidden');
                 pointerLockMessage.classList.add('hidden');
+                deviceInfo.classList.add('hidden');
                
-                if (rotationEnabled && !pointerLocked) {
+                if (rotationEnabled && !pointerLocked && !isMobile) {
                     requestPointerLock();
                 }
             }
@@ -455,8 +587,9 @@
                 sensitivityControl.classList.remove('hidden');
                 rotationInfo.classList.remove('hidden');
                 pointerLockMessage.classList.remove('hidden');
+                deviceInfo.classList.remove('hidden');
                
-                if (pointerLocked) {
+                if (pointerLocked && !isMobile) {
                     exitPointerLock();
                 }
                
@@ -474,6 +607,12 @@
                 showUI();
             }
         });
+        
+        document.addEventListener('touchstart', () => {
+            if (uiHidden) {
+                showUI();
+            }
+        });
        
         toggleRotationButton.addEventListener('click', () => {
             rotationEnabled = !rotationEnabled;
@@ -482,18 +621,24 @@
                 toggleRotationButton.classList.add('active');
                 lastMouseX = null;
                 lastUpdateTime = null;
+                initialGamma = null;
+                lastGamma = null;
                
                 if (hideUITimeout) {
                     clearTimeout(hideUITimeout);
                 }
                 hideUITimeout = setTimeout(hideUI, 5000);
+                
+                if (isMobile && !isOrientationLocked) {
+                    lockScreenOrientation();
+                }
                
             } else {
                 toggleRotationButton.textContent = 'Enable Rotation';
                 toggleRotationButton.classList.remove('active');
                 isMouseMoving = false;
                
-                if (pointerLocked) {
+                if (pointerLocked && !isMobile) {
                     exitPointerLock();
                 }
                
@@ -573,6 +718,8 @@
             rotationInfo.textContent = `Rotation: 0°`;
             isSnapping = false;
             isMouseMoving = false;
+            initialGamma = null;
+            lastGamma = null;
         });
        
         fullscreenButton.addEventListener('click', () => {
