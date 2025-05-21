@@ -261,7 +261,6 @@
         <button id="toggleRotationButton" class="control-button">Enable Rotation</button>
         <button id="resetButton" class="control-button">Reset Rotation</button>
         <button id="fullscreenButton" class="control-button">Fullscreen</button>
-        <button id="lockOrientationButton" class="control-button">Lock Orientation</button>
     </div>
    
     <div id="sensitivityControl">
@@ -281,7 +280,6 @@
         const toggleRotationButton = document.getElementById('toggleRotationButton');
         const resetButton = document.getElementById('resetButton');
         const fullscreenButton = document.getElementById('fullscreenButton');
-        const lockOrientationButton = document.getElementById('lockOrientationButton');
         const sensitivitySlider = document.getElementById('sensitivitySlider');
         const sensitivityLabel = document.getElementById('sensitivityLabel');
         const rotationInfo = document.getElementById('rotationInfo');
@@ -314,9 +312,10 @@
         let pointerLocked = false;
         let lastUpdateTime = null;
         let isMobile = false;
-        let isOrientationLocked = false;
-        let initialBeta = null;
+        let lastAlpha = null;
         let lastBeta = null;
+        let lastGamma = null;
+        let screenOrientation = window.screen.orientation ? window.screen.orientation.type : null;
         let gyroAvailable = false;
         
         function detectMobile() {
@@ -331,47 +330,35 @@
                 window.addEventListener('deviceorientation', handleOrientation, true);
                 gyroAvailable = true;
             }
-            
-            if (lockOrientationButton) {
-                lockOrientationButton.style.display = 'block';
-            } else {
-                console.error('Lock orientation button not found');
-            }
-        } else {
-            if (lockOrientationButton) {
-                lockOrientationButton.style.display = 'none';
-            }
         }
         
-        lockOrientationButton.addEventListener('click', () => {
-            lockScreenOrientation();
+        window.addEventListener('orientationchange', function() {
+            if (window.screen.orientation) {
+                screenOrientation = window.screen.orientation.type;
+            }
+            lastAlpha = null;
+            lastBeta = null;
+            lastGamma = null;
         });
         
-        function lockScreenOrientation() {
-            if (!isMobile) return;
-            
-            try {
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape').then(() => {
-                        isOrientationLocked = true;
-                        lockOrientationButton.textContent = 'Orientation Locked';
-                        lockOrientationButton.classList.add('active');
-                    }).catch(err => {
-                        console.error('Screen orientation lock error:', err);
-                        alert('Failed to lock screen orientation. Please lock your device orientation manually.');
-                    });
-                } else if (screen.lockOrientation) {
-                    screen.lockOrientation('landscape');
-                    isOrientationLocked = true;
-                    lockOrientationButton.textContent = 'Orientation Locked';
-                    lockOrientationButton.classList.add('active');
-                } else {
-                    alert('Screen orientation lock not supported. Please lock your device orientation manually.');
+        function getScreenOrientation() {
+            if (window.screen.orientation) {
+                return window.screen.orientation.type;
+            } else if (window.orientation !== undefined) {
+                switch (window.orientation) {
+                    case 0:
+                        return 'portrait-primary';
+                    case 90:
+                        return 'landscape-primary';
+                    case -90:
+                        return 'landscape-secondary';
+                    case 180:
+                        return 'portrait-secondary';
+                    default:
+                        return 'portrait-primary';
                 }
-            } catch (err) {
-                console.error('Error locking orientation:', err);
-                alert('Failed to lock screen orientation. Please lock your device orientation manually.');
             }
+            return 'portrait-primary';
         }
         
         function handleOrientation(event) {
@@ -379,27 +366,47 @@
             
             const now = Date.now();
             
-            if (event.beta === null) {
-                console.log('No beta data available');
+            if (event.alpha === null && event.beta === null && event.gamma === null) {
                 return;
             }
             
-            if (initialGamma === null) {
-                initialGamma = event.beta;
-                lastGamma = event.beta;
-                return;
-            }
+            const currentOrientation = getScreenOrientation();
+            let rotationValue;
             
-            const currentBeta = event.beta;
-            let betaDelta = lastGamma - currentBeta;
-            
-            if (Math.abs(betaDelta) > 0.1) {
-                const delta = betaDelta * sensitivity * 2;
-                updateRotation(delta);
-                lastGamma = currentBeta;
-                lastUpdateTime = now;
-                isMouseMoving = true;
-                lastMouseMoveTime = now;
+            if (currentOrientation.includes('landscape')) {
+                rotationValue = event.gamma || 0;
+                if (lastGamma === null) {
+                    lastGamma = rotationValue;
+                    return;
+                }
+                
+                let gammaDelta = lastGamma - rotationValue;
+                
+                if (Math.abs(gammaDelta) > 0.1) {
+                    const delta = gammaDelta * sensitivity * 2;
+                    updateRotation(delta);
+                    lastGamma = rotationValue;
+                    lastUpdateTime = now;
+                    isMouseMoving = true;
+                    lastMouseMoveTime = now;
+                }
+            } else {
+                rotationValue = event.beta || 0;
+                if (lastBeta === null) {
+                    lastBeta = rotationValue;
+                    return;
+                }
+                
+                let betaDelta = lastBeta - rotationValue;
+                
+                if (Math.abs(betaDelta) > 0.1) {
+                    const delta = betaDelta * sensitivity * 2;
+                    updateRotation(delta);
+                    lastBeta = rotationValue;
+                    lastUpdateTime = now;
+                    isMouseMoving = true;
+                    lastMouseMoveTime = now;
+                }
             }
         }
         
@@ -611,18 +618,14 @@
                 toggleRotationButton.classList.add('active');
                 lastMouseX = null;
                 lastUpdateTime = null;
-                initialBeta = null;
+                lastAlpha = null;
                 lastBeta = null;
+                lastGamma = null;
                
                 if (hideUITimeout) {
                     clearTimeout(hideUITimeout);
                 }
                 hideUITimeout = setTimeout(hideUI, 5000);
-                
-                if (isMobile && !isOrientationLocked) {
-                    lockScreenOrientation();
-                }
-               
             } else {
                 toggleRotationButton.textContent = 'Enable Rotation';
                 toggleRotationButton.classList.remove('active');
@@ -708,8 +711,9 @@
             rotationInfo.textContent = `Rotation: 0°`;
             isSnapping = false;
             isMouseMoving = false;
-            initialBeta = null;
+            lastAlpha = null;
             lastBeta = null;
+            lastGamma = null;
         });
        
         fullscreenButton.addEventListener('click', () => {
