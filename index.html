@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Video Rotation Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+       
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+       
+        #videoContainer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            perspective: 1000px;
+            overflow: hidden;
+        }
+       
+        #videoElement {
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            transition: transform 0.1s ease-out;
+            transform-style: preserve-3d;
+            transform-origin: center center;
+        }
+       
+        #uploadOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+       
+        #uploadBox {
+            padding: 40px;
+            background-color: #777;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+       
+        #uploadButton {
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s;
+        }
+       
+        #uploadButton:hover {
+            background-color: #2980b9;
+        }
+       
+        #fileInput {
+            display: none;
+        }
+       
+        #instructions {
+            color: white;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+        }
+       
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+       
+        body:hover #controls {
+            opacity: 1;
+        }
+       
+        .control-button {
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            transition: background-color 0.3s;
+        }
+       
+        .control-button:hover {
+            background-color: rgba(52, 152, 219, 0.8);
+        }
+       
+        .control-button.active {
+            background-color: rgba(46, 204, 113, 0.8);
+        }
+       
+        #sensitivityControl {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+       
+        body:hover #sensitivityControl {
+            opacity: 1;
+        }
+       
+        #sensitivityLabel {
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+       
+        #sensitivitySlider {
+            width: 200px;
+        }
+       
+        #rotationInfo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+       
+        body:hover #rotationInfo {
+            opacity: 1;
+        }
+       
+        .hide-cursor {
+            cursor: none !important;
+        }
+       
+        .hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+       
+        #pointerLockMessage {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+       
+        body:hover #pointerLockMessage {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="videoContainer">
+        <video id="videoElement" loop></video>
+    </div>
+   
+    <div id="uploadOverlay">
+        <div id="uploadBox">
+            <div id="instructions">
+                <h2><b>INSTRUCTIONS - PLEASE READ</h2>
+<p>Start with the display in landscape orientation. At any point you can refresh the browser to start the setup process again.</b></p>
+<br>
+                <p>1. Open the Betterjoy app (🎮 Controller icon in bottom bar)</p>
+<br>
+<p>2. Wake the Joycon controller by pressing any button.</p>
+                <br>
+<p>3. Betterjoy will show a green box when the controller has connected.</p>
+<br>
+<p>4. Press the minus button once (top left of controller). Rotating the controller should now move the mouse.</i></p>
+                <br>
+<p>5. Plug the Joycon into its charger if it wasn't already. Then press the 'Calibrate' button in the Betterjoy software. Wait for the confirmation that the calibration has been successful. (Calibrating should only need to be done for the first setup, not every day).</p>
+<br>
+<p>6. Use the 'Upload Video' button to add the video from the desktop.</p>
+<br>
+<p>7. Press the 'Fullscreen' button. Then click the 'Enable Rotation' button. After 5 seconds the UI will hide itself.</p>
+                <br>
+<p>8. You can now turn off the mouse and let the video run. It will play in a loop until it is stopped.</p>
+                <br>
+<p>To stop the video you can click anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to oritent the video correctly the first time. The Betterjoy app can be annoying and not reopen if it's been closed. You can force close the app using task manager or restart the PC if this happens.</p>
+            </div>
+            <input type="file" id="fileInput" accept="video/*">
+            <button id="uploadButton">Upload Video</button>
+        </div>
+    </div>
+   
+    <div id="controls">
+        <button id="toggleRotationButton" class="control-button">Enable Rotation</button>
+        <button id="resetButton" class="control-button">Reset Rotation</button>
+        <button id="fullscreenButton" class="control-button">Fullscreen</button>
+    </div>
+   
+    <div id="sensitivityControl">
+        <label id="sensitivityLabel">Rotation Speed: 0.2</label>
+        <input type="range" id="sensitivitySlider" min="0.1" max="1.0" step="0.1" value="0.2">
+    </div>
+   
+    <div id="rotationInfo">Rotation: 0°</div>
+    <div id="pointerLockMessage">Pointer Locked: No</div>
+   
+    <script>
+        const videoElement = document.getElementById('videoElement');
+        const uploadOverlay = document.getElementById('uploadOverlay');
+        const uploadButton = document.getElementById('uploadButton');
+        const fileInput = document.getElementById('fileInput');
+        const toggleRotationButton = document.getElementById('toggleRotationButton');
+        const resetButton = document.getElementById('resetButton');
+        const fullscreenButton = document.getElementById('fullscreenButton');
+        const sensitivitySlider = document.getElementById('sensitivitySlider');
+        const sensitivityLabel = document.getElementById('sensitivityLabel');
+        const rotationInfo = document.getElementById('rotationInfo');
+        const pointerLockMessage = document.getElementById('pointerLockMessage');
+        const controls = document.getElementById('controls');
+        const sensitivityControl = document.getElementById('sensitivityControl');
+        const body = document.body;
+        const videoContainer = document.getElementById('videoContainer');
+       
+        let rotationAngle = 0;
+        let rotationEnabled = false;
+        let sensitivity = 0.2;
+        let mouseX = 0;
+        let lastMouseX = null;
+        let lastMouseMoveTime = null;
+        let isSnapping = false;
+        let targetSnapAngle = null;
+        let snapStartAngle = null;
+        let snapStartTime = null;
+        let isMouseMoving = false;
+        let mouseMovementDelta = 0;
+        const snapThreshold = 15;
+        const snapDelay = 2000;
+        const snapDuration = 500;
+        const targetAngles = [0, 90, 180, 270, 360];
+        const mouseStopTimeout = 100;
+        let hideUITimeout = null;
+        let uiHidden = false;
+        let pointerLocked = false;
+        let lastUpdateTime = null;
+       
+        uploadButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+       
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const videoURL = URL.createObjectURL(file);
+                videoElement.src = videoURL;
+                videoElement.load();
+               
+                videoElement.addEventListener('loadedmetadata', () => {
+                    ensureVideoFills();
+                    videoElement.play().catch((err) => {
+                        console.error('Error playing video:', err);
+                    });
+                    uploadOverlay.style.display = 'none';
+                }, { once: true });
+            }
+        });
+       
+        function ensureVideoFills() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const scaleFactor = 1.2;
+            videoElement.style.minWidth = (viewportWidth * scaleFactor) + 'px';
+            videoElement.style.minHeight = (viewportHeight * scaleFactor) + 'px';
+        }
+       
+        window.addEventListener('resize', ensureVideoFills);
+       
+        function updateRotation(delta) {
+            rotationAngle += delta;
+            const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
+            videoElement.style.transition = isSnapping ? 'none' : 'transform 0.1s ease-out';
+            videoElement.style.transform = `rotate(${rotationAngle}deg)`;
+            rotationInfo.textContent = `Rotation: ${Math.round(normalizedAngle)}°`;
+        }
+       
+        const pointerLockSupported = 'pointerLockElement' in document ||
+                                    'mozPointerLockElement' in document ||
+                                    'webkitPointerLockElement' in document;
+       
+        function requestPointerLock() {
+            if (pointerLockSupported) {
+                videoContainer.requestPointerLock = videoContainer.requestPointerLock ||
+                                                 videoContainer.mozRequestPointerLock ||
+                                                 videoContainer.webkitRequestPointerLock;
+                videoContainer.requestPointerLock();
+            }
+        }
+       
+        function exitPointerLock() {
+            if (pointerLockSupported) {
+                document.exitPointerLock = document.exitPointerLock ||
+                                          document.mozExitPointerLock ||
+                                          document.webkitExitPointerLock;
+                document.exitPointerLock();
+            }
+        }
+       
+        function handlePointerLockChange() {
+            if (document.pointerLockElement === videoContainer ||
+                document.mozPointerLockElement === videoContainer ||
+                document.webkitPointerLockElement === videoContainer) {
+                pointerLocked = true;
+                pointerLockMessage.textContent = 'Pointer Locked: Yes';
+                document.addEventListener('mousemove', handleLockedMouseMove, false);
+            } else {
+                pointerLocked = false;
+                pointerLockMessage.textContent = 'Pointer Locked: No';
+                document.removeEventListener('mousemove', handleLockedMouseMove, false);
+               
+                if (uiHidden) {
+                    showUI();
+                }
+            }
+        }
+       
+        function handlePointerLockError() {
+            console.error('Error requesting pointer lock');
+            pointerLockMessage.textContent = 'Pointer Lock Failed';
+        }
+       
+        document.addEventListener('pointerlockchange', handlePointerLockChange, false);
+        document.addEventListener('mozpointerlockchange', handlePointerLockChange, false);
+        document.addEventListener('webkitpointerlockchange', handlePointerLockChange, false);
+        document.addEventListener('pointerlockerror', handlePointerLockError, false);
+        document.addEventListener('mozpointerlockerror', handlePointerLockError, false);
+        document.addEventListener('webkitpointerlockerror', handlePointerLockError, false);
+       
+        function handleLockedMouseMove(e) {
+            const now = Date.now();
+           
+            mouseMovementDelta = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+           
+            lastMouseMoveTime = now;
+            isMouseMoving = true;
+           
+            if (rotationEnabled && !isSnapping) {
+                const delta = mouseMovementDelta * sensitivity * 0.5;
+                lastUpdateTime = now;
+               
+                if (mouseMovementDelta !== 0) {
+                    updateRotation(delta);
+                }
+            }
+        }
+       
+        document.addEventListener('mousemove', (e) => {
+            if (!pointerLocked) {
+                const now = Date.now();
+               
+                if (lastMouseX !== null) {
+                    mouseMovementDelta = e.movementX || e.clientX - lastMouseX;
+                }
+               
+                mouseX = e.clientX;
+                lastMouseMoveTime = now;
+                isMouseMoving = true;
+               
+                if (rotationEnabled && !isSnapping) {
+                    if (lastMouseX === null) {
+                        lastMouseX = mouseX;
+                        lastUpdateTime = now;
+                        return;
+                    }
+                   
+                    const delta = mouseMovementDelta * sensitivity * 0.5;
+                    lastMouseX = mouseX;
+                    lastUpdateTime = now;
+                   
+                    if (mouseMovementDelta !== 0) {
+                        updateRotation(delta);
+                    }
+                }
+            }
+        });
+       
+        document.addEventListener('mouseleave', () => {
+            if (rotationEnabled && !pointerLocked) {
+                isMouseMoving = false;
+            }
+        });
+       
+        setInterval(() => {
+            const now = Date.now();
+            if (lastMouseMoveTime && now - lastMouseMoveTime > mouseStopTimeout) {
+                isMouseMoving = false;
+                mouseMovementDelta = 0;
+            }
+        }, 50);
+       
+        function hideUI() {
+            if (!uiHidden) {
+                uiHidden = true;
+                body.classList.add('hide-cursor');
+                controls.classList.add('hidden');
+                sensitivityControl.classList.add('hidden');
+                rotationInfo.classList.add('hidden');
+                pointerLockMessage.classList.add('hidden');
+               
+                if (rotationEnabled && !pointerLocked) {
+                    requestPointerLock();
+                }
+            }
+        }
+       
+        function showUI() {
+            if (uiHidden) {
+                uiHidden = false;
+                body.classList.remove('hide-cursor');
+                controls.classList.remove('hidden');
+                sensitivityControl.classList.remove('hidden');
+                rotationInfo.classList.remove('hidden');
+                pointerLockMessage.classList.remove('hidden');
+               
+                if (pointerLocked) {
+                    exitPointerLock();
+                }
+               
+                if (rotationEnabled) {
+                    if (hideUITimeout) {
+                        clearTimeout(hideUITimeout);
+                    }
+                    hideUITimeout = setTimeout(hideUI, 5000);
+                }
+            }
+        }
+       
+        document.addEventListener('click', () => {
+            if (uiHidden || pointerLocked) {
+                showUI();
+            }
+        });
+       
+        toggleRotationButton.addEventListener('click', () => {
+            rotationEnabled = !rotationEnabled;
+            if (rotationEnabled) {
+                toggleRotationButton.textContent = 'Disable Rotation';
+                toggleRotationButton.classList.add('active');
+                lastMouseX = null;
+                lastUpdateTime = null;
+               
+                if (hideUITimeout) {
+                    clearTimeout(hideUITimeout);
+                }
+                hideUITimeout = setTimeout(hideUI, 5000);
+               
+            } else {
+                toggleRotationButton.textContent = 'Enable Rotation';
+                toggleRotationButton.classList.remove('active');
+                isMouseMoving = false;
+               
+                if (pointerLocked) {
+                    exitPointerLock();
+                }
+               
+                if (hideUITimeout) {
+                    clearTimeout(hideUITimeout);
+                    hideUITimeout = null;
+                }
+               
+                if (uiHidden) {
+                    showUI();
+                }
+            }
+        });
+       
+        function checkForSnap() {
+            if (!rotationEnabled || isSnapping || isMouseMoving) return;
+           
+            const now = Date.now();
+            if (lastMouseMoveTime && (now - lastMouseMoveTime >= snapDelay)) {
+                const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
+                let closestAngle = null;
+                let minDiff = Infinity;
+               
+                targetAngles.forEach(angle => {
+                    const diff = Math.abs(((normalizedAngle - angle) % 360 + 540) % 360 - 180);
+                    if (diff < snapThreshold && diff < minDiff) {
+                        closestAngle = angle;
+                        minDiff = diff;
+                    }
+                });
+               
+                if (closestAngle !== null) {
+                    isSnapping = true;
+                    targetSnapAngle = closestAngle;
+                    snapStartAngle = rotationAngle;
+                    snapStartTime = now;
+                   
+                    const normalizedCurrent = normalizedAngle;
+                    let delta = closestAngle - normalizedCurrent;
+                    if (delta > 180) delta -= 360;
+                    if (delta < -180) delta += 360;
+                    const targetRotation = rotationAngle + delta;
+                   
+                    animateSnap(targetRotation);
+                }
+            }
+        }
+       
+        function animateSnap(targetRotation) {
+            const now = Date.now();
+            const elapsed = now - snapStartTime;
+            const progress = Math.min(elapsed / snapDuration, 1);
+            const easedProgress = 1 - Math.pow(1 - progress, 4);
+           
+            rotationAngle = snapStartAngle + (targetRotation - snapStartAngle) * easedProgress;
+            const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
+           
+            videoElement.style.transition = 'none';
+            videoElement.style.transform = `rotate(${rotationAngle}deg)`;
+            rotationInfo.textContent = `Rotation: ${Math.round(normalizedAngle)}°`;
+           
+            if (progress < 1) {
+                requestAnimationFrame(() => animateSnap(targetRotation));
+            } else {
+                isSnapping = false;
+                rotationAngle = targetRotation;
+                videoElement.style.transition = 'transform 0.1s ease-out';
+            }
+        }
+       
+        setInterval(checkForSnap, 100);
+       
+        resetButton.addEventListener('click', () => {
+            rotationAngle = 0;
+            videoElement.style.transition = 'transform 0.1s ease-out';
+            videoElement.style.transform = `rotate(0deg)`;
+            rotationInfo.textContent = `Rotation: 0°`;
+            isSnapping = false;
+            isMouseMoving = false;
+        });
+       
+        fullscreenButton.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.error('Error entering fullscreen:', err);
+                });
+                fullscreenButton.textContent = 'Exit Fullscreen';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    fullscreenButton.textContent = 'Fullscreen';
+                }
+            }
+        });
+       
+        sensitivitySlider.addEventListener('input', (e) => {
+            sensitivity = parseFloat(e.target.value);
+            sensitivityLabel.textContent = `Rotation Speed: ${sensitivity.toFixed(1)}`;
+        });
+       
+        videoElement.addEventListener('ended', () => {
+            videoElement.play();
+        });
+       
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                fullscreenButton.textContent = 'Fullscreen';
+                isMouseMoving = false;
+            }
+        });
+    </script>
+</body>
+</html>
