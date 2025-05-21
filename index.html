@@ -35,9 +35,9 @@
        
         #videoElement {
             position: absolute;
-            width: 100vw;
-            height: 100vh;
-            object-fit: contain;
+            width: 115vmax;
+            height: 115vmax;
+            object-fit: fill;
             transition: transform 0.1s ease-out;
             transform-style: preserve-3d;
             transform-origin: center center;
@@ -210,26 +210,26 @@
     <div id="uploadOverlay">
         <div id="uploadBox">
             <div id="instructions">
-                <h2><b>INSTRUCTIONS - PLEASE READ</h2>
-<p>Start with the display in landscape orientation. At any point you can refresh the browser to start the setup process again.</b></p>
-<br>
+                <h2><b>INSTRUCTIONS - PLEASE READ</b></h2>
+                <p>Start with the display in landscape orientation. At any point you can refresh the browser to start the setup process again.</p>
+                <br>
                 <p>1. Open the Betterjoy app (🎮 Controller icon in bottom bar)</p>
-<br>
-<p>2. Wake the Joycon controller by pressing any button.</p>
                 <br>
-<p>3. Betterjoy will show a green box when the controller has connected.</p>
-<br>
-<p>4. Press the minus button once (top left of controller). Rotating the controller should now move the mouse.</i></p>
+                <p>2. Wake the Joycon controller by pressing any button.</p>
                 <br>
-<p>5. Plug the Joycon into its charger if it wasn't already. Then press the 'Calibrate' button in the Betterjoy software. Wait for the confirmation that the calibration has been successful. (Calibrating should only need to be done for the first setup, not every day).</p>
-<br>
-<p>6. Use the 'Upload Video' button to add the video from the desktop.</p>
-<br>
-<p>7. Press the 'Fullscreen' button. Then click the 'Enable Rotation' button. After 5 seconds the UI will hide itself.</p>
+                <p>3. Betterjoy will show a green box when the controller has connected.</p>
                 <br>
-<p>8. You can now turn off the mouse and let the video run. It will play in a loop until it is stopped.</p>
+                <p>4. Press the minus button once (top left of controller). Rotating the controller should now move the mouse.</p>
                 <br>
-<p>To stop the video you can click anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to oritent the video correctly the first time. The Betterjoy app can be annoying and not reopen if it's been closed. You can force close the app using task manager or restart the PC if this happens.</p>
+                <p>5. Plug the Joycon into its charger if it wasn't already. Then press the 'Calibrate' button in the Betterjoy software. Wait for the confirmation that the calibration has been successful. (Calibrating should only need to be done for the first setup, not every day).</p>
+                <br>
+                <p>6. Use the 'Upload Video' button to add the video from the desktop.</p>
+                <br>
+                <p>7. Press the 'Fullscreen' button. Then click the 'Enable Rotation' button. After 5 seconds the UI will hide itself.</p>
+                <br>
+                <p>8. You can now turn off the mouse and let the video run. It will play in a loop until it is stopped.</p>
+                <br>
+                <p>To stop the video you can click anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to orient the video correctly the first time. The Betterjoy app can be annoying and not reopen if it's been closed. You can force close the app using task manager or restart the PC if this happens.</p>
             </div>
             <input type="file" id="fileInput" accept="video/*">
             <button id="uploadButton">Upload Video</button>
@@ -301,7 +301,7 @@
                 videoElement.load();
                
                 videoElement.addEventListener('loadedmetadata', () => {
-                    ensureVideoFills();
+                    console.log('Video dimensions:', videoElement.videoWidth, 'x', videoElement.videoHeight);
                     videoElement.play().catch((err) => {
                         console.error('Error playing video:', err);
                     });
@@ -309,16 +309,6 @@
                 }, { once: true });
             }
         });
-       
-        function ensureVideoFills() {
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            const scaleFactor = 1.2;
-            videoElement.style.minWidth = (viewportWidth * scaleFactor) + 'px';
-            videoElement.style.minHeight = (viewportHeight * scaleFactor) + 'px';
-        }
-       
-        window.addEventListener('resize', ensureVideoFills);
        
         function updateRotation(delta) {
             rotationAngle += delta;
