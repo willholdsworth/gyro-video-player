@@ -236,7 +236,6 @@
                 <h2><b>INSTRUCTIONS - PLEASE READ</b></h2>
                 <p>Start with the display in landscape orientation. At any point you can refresh the browser to start the setup process again.</p>
                 <br>
-                <h3>Desktop Setup:</h3>
                 <p>1. Open the Betterjoy app (🎮 Controller icon in bottom bar)</p>
                 <br>
                 <p>2. Wake the Joycon controller by pressing any button.</p>
@@ -253,16 +252,7 @@
                 <br>
                 <p>8. You can now turn off the mouse and let the video run. It will play in a loop until it is stopped.</p>
                 <br>
-                <h3>Mobile Setup:</h3>
-                <p>1. Upload your video using the button above.</p>
-                <br>
-                <p>2. Lock your screen orientation to landscape before continuing.</p>
-                <br>
-                <p>3. Press the 'Enable Rotation' button to use your phone's gyroscope to control video rotation.</p>
-                <br>
-                <p>4. For best results, hold your phone in landscape orientation.</p>
-                <br>
-                <p>To stop the video you can tap anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to orient the video correctly.</p>
+                <p>To stop the video you can click anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to orient the video correctly the first time. The Betterjoy app can be annoying and not reopen if it's been closed. You can force close the app using task manager or restart the PC if this happens.</p>
             </div>
         </div>
     </div>
@@ -325,8 +315,8 @@
         let lastUpdateTime = null;
         let isMobile = false;
         let isOrientationLocked = false;
-        let initialGamma = null;
-        let lastGamma = null;
+        let initialBeta = null;
+        let lastBeta = null;
         let gyroAvailable = false;
         
         function detectMobile() {
@@ -389,24 +379,24 @@
             
             const now = Date.now();
             
-            if (event.gamma === null) {
-                console.log('No gamma data available');
+            if (event.beta === null) {
+                console.log('No beta data available');
                 return;
             }
             
             if (initialGamma === null) {
-                initialGamma = event.gamma;
-                lastGamma = event.gamma;
+                initialGamma = event.beta;
+                lastGamma = event.beta;
                 return;
             }
             
-            const currentGamma = event.gamma;
-            let gammaDelta = lastGamma - currentGamma;
+            const currentBeta = event.beta;
+            let betaDelta = lastGamma - currentBeta;
             
-            if (Math.abs(gammaDelta) > 0.1) {
-                const delta = gammaDelta * sensitivity * 2;
+            if (Math.abs(betaDelta) > 0.1) {
+                const delta = betaDelta * sensitivity * 2;
                 updateRotation(delta);
-                lastGamma = currentGamma;
+                lastGamma = currentBeta;
                 lastUpdateTime = now;
                 isMouseMoving = true;
                 lastMouseMoveTime = now;
@@ -621,8 +611,8 @@
                 toggleRotationButton.classList.add('active');
                 lastMouseX = null;
                 lastUpdateTime = null;
-                initialGamma = null;
-                lastGamma = null;
+                initialBeta = null;
+                lastBeta = null;
                
                 if (hideUITimeout) {
                     clearTimeout(hideUITimeout);
@@ -718,8 +708,8 @@
             rotationInfo.textContent = `Rotation: 0°`;
             isSnapping = false;
             isMouseMoving = false;
-            initialGamma = null;
-            lastGamma = null;
+            initialBeta = null;
+            lastBeta = null;
         });
        
         fullscreenButton.addEventListener('click', () => {
