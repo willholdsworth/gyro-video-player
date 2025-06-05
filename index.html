@@ -541,7 +541,7 @@
 
             <h3>🎮 Controlling the Video</h3>
             <ul>
-                <li>Tilt the device or sensor - the video will rotate in real-time as the device/sensor rotates.</li>
+                <li>Tilt the device or sensor - the video will rotate in real-time to match the rotation, even for multiple full rotations.</li>
             </ul>
 
             <h3>🔧 Features</h3>
@@ -808,9 +808,8 @@
             if (bytesData[1] === 0x61) {
                 rawSensorAngleY = getSignInt16(bytesData[17] << 8 | bytesData[16]) / 32768 * 180;
                 sensorAngleY = rawSensorAngleY - calibrationOffset;
-                sensorAngleY = ((sensorAngleY % 360) + 360) % 360; // Normalize to 0-360
                 sensorAngleY = Math.round(sensorAngleY * 1000) / 1000;
-                sensorAngleDisplay.textContent = `${sensorAngleY.toFixed(1)}°`;
+                sensorAngleDisplay.textContent = `${((sensorAngleY % 360 + 360) % 360).toFixed(1)}°`;
                 dataPacketCount++;
                 if (dataPacketCount >= minPacketsForCalibration && !calibrationOffset) {
                     calibrateSensor();
@@ -826,9 +825,8 @@
             
             rawSensorAngleY = alpha;
             sensorAngleY = rawSensorAngleY - calibrationOffset;
-            sensorAngleY = ((sensorAngleY % 360) + 360) % 360; // Normalize to 0-360
             sensorAngleY = Math.round(sensorAngleY * 1000) / 1000;
-            sensorAngleDisplay.textContent = `${sensorAngleY.toFixed(1)}°`;
+            sensorAngleDisplay.textContent = `${((sensorAngleY % 360 + 360) % 360).toFixed(1)}°`;
             
             controlRotation(sensorAngleY);
         }
@@ -836,18 +834,11 @@
         function controlRotation(angleY) {
             if (!rotationEnabled || isSnapping) return;
             
-            // Normalize angles to 0-360 for consistent comparison
-            let normalizedAngleY = ((angleY % 360) + 360) % 360;
-            let normalizedLastAngleY = ((lastAngleY % 360) + 360) % 360;
+            // Directly set rotationAngle to the gyro's angle, adjusted for calibration
+            rotationAngle = angleY;
             
-            // Calculate the shortest angle difference (clockwise or counterclockwise)
-            let angleDiff = normalizedAngleY - normalizedLastAngleY;
-            if (angleDiff > 180) angleDiff -= 360;
-            if (angleDiff < -180) angleDiff += 360;
-            
-            if (Math.abs(angleDiff) > deadzone) {
-                const delta = angleDiff * 1.0;
-                updateRotation(delta);
+            if (Math.abs(angleY - lastAngleY) > deadzone) {
+                updateRotation();
                 isRotating = true;
                 lastRotationTime = Date.now();
             }
@@ -1029,11 +1020,12 @@
             }
         }
 
-        function updateRotation(delta) {
-            rotationAngle += delta;
-            const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
+        function updateRotation() {
+            // Apply the absolute rotation angle without normalization for transform
             videoElement.style.transition = isSnapping ? 'none' : 'transform 0.1s ease-out';
             videoElement.style.transform = `rotate(${rotationAngle}deg)`;
+            // Normalize for display only
+            const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
             rotationDisplay.textContent = `${Math.round(normalizedAngle)}°`;
         }
 
@@ -1064,7 +1056,8 @@
                     let delta = closestAngle - normalizedCurrent;
                     if (delta > 180) delta -= 360;
                     if (delta < -180) delta += 360;
-                    const targetRotation = rotationAngle + delta;
+                    // Adjust targetRotation to maintain continuity of rotationAngle
+                    const targetRotation = Math.round(rotationAngle / 360) * 360 + closestAngle;
                     
                     animateSnap(targetRotation);
                 }
