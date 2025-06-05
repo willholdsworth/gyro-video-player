@@ -820,10 +820,10 @@
 
         function handleDeviceOrientation(event) {
             if (!deviceGyroEnabled || !rotationEnabled || isSnapping) return;
-            const gamma = event.gamma; // Use gamma for side-to-side tilt in portrait mode
-            if (gamma === null) return;
+            const alpha = event.alpha; // Use alpha for Z-axis rotation (spinning in hand)
+            if (alpha === null) return;
             
-            rawSensorAngleY = gamma; // Directly use gamma
+            rawSensorAngleY = alpha; // Directly use alpha
             sensorAngleY = rawSensorAngleY - calibrationOffset;
             sensorAngleY = Math.round(sensorAngleY * 1000) / 1000;
             sensorAngleDisplay.textContent = `${((sensorAngleY % 360 + 360) % 360).toFixed(1)}°`;
