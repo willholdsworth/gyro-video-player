@@ -808,6 +808,7 @@
             if (bytesData[1] === 0x61) {
                 rawSensorAngleY = getSignInt16(bytesData[17] << 8 | bytesData[16]) / 32768 * 180;
                 sensorAngleY = rawSensorAngleY - calibrationOffset;
+                sensorAngleY = ((sensorAngleY % 360) + 360) % 360; // Normalize to 0-360
                 sensorAngleY = Math.round(sensorAngleY * 1000) / 1000;
                 sensorAngleDisplay.textContent = `${sensorAngleY.toFixed(1)}°`;
                 dataPacketCount++;
@@ -820,7 +821,6 @@
 
         function handleDeviceOrientation(event) {
             if (!deviceGyroEnabled || !rotationEnabled || isSnapping) return;
-            // Use alpha (Z-axis rotation, yaw) for rotation control
             const alpha = event.alpha; // 0 to 360 degrees
             if (alpha === null) return;
             
@@ -836,8 +836,15 @@
         function controlRotation(angleY) {
             if (!rotationEnabled || isSnapping) return;
             
-            let angleDiff = angleY - lastAngleY;
-            angleDiff = ((angleDiff + 180) % 360 - 180);
+            // Normalize angles to 0-360 for consistent comparison
+            let normalizedAngleY = ((angleY % 360) + 360) % 360;
+            let normalizedLastAngleY = ((lastAngleY % 360) + 360) % 360;
+            
+            // Calculate the shortest angle difference (clockwise or counterclockwise)
+            let angleDiff = normalizedAngleY - normalizedLastAngleY;
+            if (angleDiff > 180) angleDiff -= 360;
+            if (angleDiff < -180) angleDiff += 360;
+            
             if (Math.abs(angleDiff) > deadzone) {
                 const delta = angleDiff * 1.0;
                 updateRotation(delta);
