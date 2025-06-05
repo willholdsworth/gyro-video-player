@@ -466,7 +466,7 @@
             <h1>🎬 Gyro Video Player</h1>
             <ol class="step-list">
                 <li>Upload a video to get started</li>
-                <li>Pair the gyro sensor</li>
+                <li>Pair the gyro sensor or use device gyroscope</li>
                 <li>Tilt the screen to rotate your video</li>
             </ol>
             <div id="uploadArea">
@@ -480,16 +480,18 @@
     <div id="setupOverlay">
         <div id="setupContent">
             <div class="setup-step active" id="step1">
-                <h2>🔌 Connect Your Sensor</h2>
+                <h2>🔌 Connect Your Sensor or Use Device Gyro</h2>
                 <ul>
-                    <li>Press the button on the blue sensor (Attached to PC in HDMI)</li>
-                    <li>There is a light on the sensor that will start blinking green</li>
-                    <li>Press the 'Connect Sensor' button below to pair the sensor</li>
-                    <li>It can take a moment before the device appears (WT901BLE67)</li>
-		<li>If pairing fails click 'Reconnect Sensor' on next screen</li>
+                    <li>Use your device's built-in gyroscope (if available) or connect an external sensor.</li>
+                    <li>For external sensor: Press the button on the blue sensor (Attached to PC in HDMI).</li>
+                    <li>The sensor's light will start blinking green.</li>
+                    <li>Press 'Connect Sensor' to pair the sensor (WT901BLE67).</li>
+                    <li>Or press 'Use Device Gyro' to use your device's gyroscope.</li>
+                    <li>If pairing fails, click 'Reconnect Sensor' on the next screen.</li>
                 </ul>
                 <div class="setup-buttons">
                     <button id="connectSensorButton" class="control-button active">Connect Sensor</button>
+                    <button id="useDeviceGyroButton" class="control-button">Use Device Gyro</button>
                 </div>
             </div>
         </div>
@@ -532,36 +534,37 @@
             
             <h3>Setup</h3>
             <ul>
-                <li>You can refresh the page at any time if anything doesn't work as expected</li>
-                <li>Follow the tutorial to select the video and pair your sensor</li>
-                <li>Keep the sensor plugged into the PC to keep it powered (It will last up to 8 hours if it's unplugged)</li>
+                <li>You can refresh the page at any time if anything doesn't work as expected.</li>
+                <li>Follow the tutorial to select the video and pair your sensor or use device gyroscope.</li>
+                <li>Keep the sensor plugged into the PC to keep it powered (It will last up to 8 hours if unplugged).</li>
             </ul>
 
             <h3>🎮 Controlling the Video</h3>
             <ul>
-                <li>Tilt the sensor - the video will rotate in real-time as the sensor rotates</li>
+                <li>Tilt the device or sensor - the video will rotate in real-time as the device/sensor rotates.</li>
             </ul>
 
             <h3>🔧 Features</h3>
             <ul>
-                <li>Calibration - Sets the current sensor orientation as 0° rotation (Not a requirement)</li>
-                <li>Auto-snap - If the video is within 15 degrees of 0°, 90°, 180°, 270° it will auto level to avoid drifting out of position</li>
-                <li>Fullscreen mode - The UI automatically hides after 5 seconds</li>
-                <li>Status display - Shows current rotation angle and sensor connection status</li>
+                <li>Calibration - Sets the current sensor/device orientation as 0° rotation (Not a requirement).</li>
+                <li>Auto-snap - If the video is within 15 degrees of 0°, 90°, 180°, 270°, it will auto-level to avoid drifting.</li>
+                <li>Fullscreen mode - The UI automatically hides after 5 seconds.</li>
+                <li>Status display - Shows current rotation angle and sensor/device connection status.</li>
             </ul>
 
             <h3>🔍 Troubleshooting</h3>
             <ul>
-                <li>Can't find the sensor? The sensor is attached to the PC that is plugged into the HDMI port on the back of the TV</li>
-                <li>Can't connect sensor? Press the button on the sensor once to wake it</li>
-                <li>Video orientation not matching the sensor? Recalibrate the sensor or refresh the page</li>
-		<li>Video not playing? Snapping the page can cause the video to break. Refresh the page and start again</li>
+                <li>Can't find the sensor? The sensor is attached to the PC plugged into the HDMI port on the TV.</li>
+                <li>Can't connect sensor? Press the button on the sensor once to wake it.</li>
+                <li>Device gyro not working? Ensure your device supports gyroscope and permissions are granted.</li>
+                <li>Video orientation not matching? Recalibrate or refresh the page.</li>
+                <li>Video not playing? Refresh the page and start again.</li>
             </ul>
 
             <h3>⌨️ Keyboard Shortcuts</h3>
             <ul>
-                <li>F11 - Toggle fullscreen mode</li>
-                <li>Escape - Exit fullscreen mode</li>
+                <li>F11 - Toggle fullscreen mode.</li>
+                <li>Escape - Exit fullscreen mode or close help.</li>
             </ul>
         </div>
     </div>
@@ -585,6 +588,7 @@
         const statusPanel = document.getElementById('statusPanel');
         const body = document.body;
         const connectSensorButton = document.getElementById('connectSensorButton');
+        const useDeviceGyroButton = document.getElementById('useDeviceGyroButton');
 
         let currentStep = 1;
         let rotationAngle = 0;
@@ -606,6 +610,7 @@
         let hideUITimeout = null;
         let uiHidden = false;
         let sensorConnected = false;
+        let deviceGyroEnabled = false;
         let bluetoothDevice = null;
         let characteristic = null;
         let tempBytes = [];
@@ -689,6 +694,16 @@
             });
         }
 
+        async function lockOrientation() {
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('portrait');
+                }
+            } catch (error) {
+                console.warn('Orientation lock failed:', error);
+            }
+        }
+
         uploadArea.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', (e) => {
@@ -702,15 +717,45 @@
             videoElement.src = videoURL;
             welcomeOverlay.style.display = 'none';
             setupOverlay.style.display = 'flex';
+            lockOrientation();
         }
 
         connectSensorButton.addEventListener('click', async () => {
             reconnectAttempts = 0;
+            deviceGyroEnabled = false;
             await attemptConnection();
+        });
+
+        useDeviceGyroButton.addEventListener('click', async () => {
+            if ('DeviceOrientationEvent' in window) {
+                try {
+                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission !== 'granted') {
+                            updateSensorStatus('Gyro Permission Denied', 'status-disconnected');
+                            return;
+                        }
+                    }
+                    sensorConnected = false;
+                    deviceGyroEnabled = true;
+                    rotationEnabled = true;
+                    recalibrateButton.disabled = false;
+                    updateSensorStatus('Device Gyro Connected', 'status-connected');
+                    setupOverlay.style.display = 'none';
+                    lockOrientation();
+                    window.addEventListener('deviceorientation', handleDeviceOrientation);
+                } catch (error) {
+                    updateSensorStatus('Gyro Access Failed', 'status-disconnected');
+                }
+            } else {
+                updateSensorStatus('Gyro Not Supported', 'status-disconnected');
+            }
         });
 
         reconnectSensorButton.addEventListener('click', async () => {
             reconnectAttempts = 0;
+            deviceGyroEnabled = false;
+            window.removeEventListener('deviceorientation', handleDeviceOrientation);
             if (sensorConnected && bluetoothDevice && bluetoothDevice.gatt.connected) {
                 bluetoothDevice.gatt.disconnect();
             }
@@ -773,6 +818,21 @@
             }
         }
 
+        function handleDeviceOrientation(event) {
+            if (!deviceGyroEnabled || !rotationEnabled || isSnapping) return;
+            // Use alpha (Z-axis rotation, yaw) for rotation control
+            const alpha = event.alpha; // 0 to 360 degrees
+            if (alpha === null) return;
+            
+            rawSensorAngleY = alpha;
+            sensorAngleY = rawSensorAngleY - calibrationOffset;
+            sensorAngleY = ((sensorAngleY % 360) + 360) % 360; // Normalize to 0-360
+            sensorAngleY = Math.round(sensorAngleY * 1000) / 1000;
+            sensorAngleDisplay.textContent = `${sensorAngleY.toFixed(1)}°`;
+            
+            controlRotation(sensorAngleY);
+        }
+
         function controlRotation(angleY) {
             if (!rotationEnabled || isSnapping) return;
             
@@ -817,7 +877,7 @@
         }
 
         function calibrateSensor() {
-            if (!sensorConnected) return;
+            if (!sensorConnected && !deviceGyroEnabled) return;
             
             calibrationOffset = rawSensorAngleY;
             sensorAngleY = 0;
@@ -915,6 +975,8 @@
                 const writeCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_WRITE);
                 
                 sensorConnected = true;
+                deviceGyroEnabled = false;
+                window.removeEventListener('deviceorientation', handleDeviceOrientation);
                 reconnectAttempts = 0;
                 updateSensorStatus('Connected', 'status-connected');
                 recalibrateButton.disabled = false;
@@ -1031,6 +1093,7 @@
                 document.documentElement.requestFullscreen().catch((err) => {
                 });
                 fullscreenButton.innerHTML = '🔲 Exit Fullscreen';
+                lockOrientation();
             } else {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
@@ -1052,6 +1115,7 @@
                 body.classList.add('fullscreen');
                 resetUITimeout();
                 fullscreenButton.innerHTML = '🔲 Exit Fullscreen';
+                lockOrientation();
             }
         });
 
@@ -1074,8 +1138,8 @@
         setInterval(checkForSnap, 100);
 
         window.addEventListener('load', () => {
-            if (!navigator.bluetooth) {
-                updateSensorStatus('Bluetooth Not Supported', 'status-disconnected');
+            if (!navigator.bluetooth && !('DeviceOrientationEvent' in window)) {
+                updateSensorStatus('No Sensor or Gyro Support', 'status-disconnected');
                 reconnectSensorButton.disabled = false;
             } else {
                 updateSensorStatus('Ready to Connect', 'status-disconnected');
