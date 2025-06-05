@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infinite Video Rotation Controller</title>
+    <title>Motion-Controlled Video Player</title>
     <style>
         * {
             margin: 0;
@@ -15,11 +15,12 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #000;
+            background: linear-gradient(135deg, #1e3a8a 0%, #000000 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
        
         #videoContainer {
@@ -31,6 +32,7 @@
             position: relative;
             perspective: 1000px;
             overflow: hidden;
+            background: #000;
         }
        
         #videoElement {
@@ -43,618 +45,938 @@
             transform-origin: center center;
         }
        
-        #uploadOverlay {
+        #welcomeOverlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
+            background: linear-gradient(45deg, #1e3a8a, #000000, #3b82f6, #000000);
+            background-size: 400%;
+            animation: gradientAnimation 30s ease infinite;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 10;
-        }
-       
-        #uploadBox {
-            padding: 40px;
-            background-color: #777;
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-       
-        #uploadButton {
-            padding: 12px 24px;
-            background-color: #3498db;
+            z-index: 20;
             color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: background-color 0.3s;
-            margin-bottom: 20px;
+            text-align: center;
+            padding: 20px;
+            transition: background 0.3s ease;
         }
-       
-        #uploadButton:hover {
-            background-color: #2980b9;
+
+        #welcomeOverlay.drag-over {
+            background: linear-gradient(45deg, #2b4ba3, #1a1a1a, #4e96ff, #1a1a1a);
+            background-size: 400%;
+        }
+
+        #welcomeContent {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #welcomeContent h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            font-weight: 300;
+        }
+
+        .step-list {
+            text-align: left;
+            margin: 30px 0;
+        }
+
+        .step-list li {
+            margin: 15px 0;
+            padding-left: 30px;
+            position: relative;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        #uploadArea {
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            padding: 40px 20px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #uploadArea:hover {
+            border-color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
         }
        
         #fileInput {
             display: none;
         }
-       
-        #instructions {
+
+        #setupOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #1e3a8a, #000000, #3b82f6, #000000);
+            background-size: 400%;
+            animation: gradientAnimation 30s ease infinite;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 12;
             color: white;
             text-align: center;
-            font-family: Arial, sans-serif;
-            max-width: 500px;
+            padding: 20px;
+        }
+
+        #setupContent {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #setupContent h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            font-weight: 300;
+            color: white;
+        }
+
+        #setupContent ul {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        #setupContent li {
+            margin: 15px 0;
+            padding-left: 30px;
+            position: relative;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        .setup-step {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .setup-step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .setup-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
         }
        
         #controls {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 15px;
             z-index: 5;
-            opacity: 0;
-            transition: opacity 0.3s;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+            flex-wrap: wrap;
+            justify-content: center;
         }
        
-        body:hover #controls {
-            opacity: 1;
+        #controls.ui-hidden {
+            opacity: 0;
         }
        
         .control-button {
-            background-color: rgba(0, 0, 0, 0.6);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
             color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            padding: 12px 20px;
             cursor: pointer;
-            font-family: Arial, sans-serif;
-            transition: background-color 0.3s;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
        
         .control-button:hover {
-            background-color: rgba(52, 152, 219, 0.8);
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         }
        
         .control-button.active {
-            background-color: rgba(46, 204, 113, 0.8);
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            border-color: #2196F3;
+        }
+
+        .control-button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .help-button {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            border-color: #2196F3;
+        }
+
+        .help-button:hover {
+            background: linear-gradient(45deg, #1976D2, #1565C0);
         }
        
-        #sensitivityControl {
-            position: absolute;
-            bottom: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            z-index: 5;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-       
-        body:hover #sensitivityControl {
-            opacity: 1;
-        }
-       
-        #sensitivityLabel {
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-        }
-       
-        #sensitivitySlider {
-            width: 200px;
-        }
-       
-        #rotationInfo {
+        #statusPanel {
             position: absolute;
             top: 20px;
             right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
             color: white;
-            font-family: Arial, sans-serif;
-            background-color: rgba(0, 0, 0, 0.6);
-            padding: 5px 10px;
-            border-radius: 5px;
+            font-family: inherit;
             z-index: 5;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-       
-        body:hover #rotationInfo {
             opacity: 1;
+            transition: opacity 0.5s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 200px;
         }
        
+        #statusPanel.ui-hidden {
+            opacity: 0;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .status-value {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-connected {
+            background: rgba(33, 150, 243);
+            color: white;
+        }
+
+        .status-connecting {
+            background: rgba(255, 193, 7);
+            color: white;
+        }
+
+        .status-disconnected {
+            background: rgba(244, 67, 54);
+            color: white;
+        }
+
         .hide-cursor {
-            cursor: none !important;
+            cursor: none;
         }
-       
+
         .hidden {
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-       
-        #pointerLockMessage {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-family: Arial, sans-serif;
-            background-color: rgba(0, 0, 0, 0.6);
-            padding: 5px 10px;
-            border-radius: 5px;
-            z-index: 5;
             opacity: 0;
-            transition: opacity 0.3s;
+            pointer-events: none;
         }
-       
-        body:hover #pointerLockMessage {
-            opacity: 1;
+
+        body.fullscreen.ui-hidden {
+            cursor: none;
         }
-        
-        #deviceInfo {
+
+        body.fullscreen.ui-hidden * {
+            cursor: none;
+        }
+
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
             position: absolute;
-            top: 50px;
-            left: 20px;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
-            font-family: Arial, sans-serif;
-            background-color: rgba(0, 0, 0, 0.6);
-            padding: 5px 10px;
-            border-radius: 5px;
-            z-index: 5;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: nowrap;
             opacity: 0;
-            transition: opacity 0.3s;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+            margin-bottom: 5px;
         }
-        
-        body:hover #deviceInfo {
+
+        .tooltip:hover::after {
             opacity: 1;
+            visibility: visible;
+        }
+
+        #helpOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        #helpContent {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: #333;
+            position: relative;
+        }
+
+        #helpContent h2 {
+            color: #2196F3;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        #helpContent h3 {
+            color: #1976D2;
+            margin: 20px 0 10px 0;
+            font-size: 1.3em;
+        }
+
+        #helpContent p, #helpContent li {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        #helpContent ul {
+            margin-left: 20px;
+        }
+
+        .close-help {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: #666;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .close-help:hover {
+            background: rgba(0, 0, 0, 0.1);
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            #welcomeContent, #setupContent, #helpContent {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            #welcomeContent h1, #setupContent h2 {
+                font-size: 2em;
+            }
+            
+            .control-button {
+                padding: 10px 15px;
+                font-size: 0.9em;
+            }
+            
+            #statusPanel {
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
         }
     </style>
 </head>
 <body>
     <div id="videoContainer">
-        <video id="videoElement" loop></video>
+        <video id="videoElement" autoplay loop></video>
     </div>
-   
-    <div id="uploadOverlay">
-        <div id="uploadBox">
+
+    <div id="welcomeOverlay">
+        <div id="welcomeContent">
+            <h1>🎬 Gyro Video Player</h1>
+            <ol class="step-list">
+                <li>Upload a video to get started</li>
+                <li>Pair the gyro sensor</li>
+                <li>Tilt the screen to rotate your video</li>
+            </ol>
+            <div id="uploadArea">
+                <p style="font-size: 3em; margin: 0;">📁</p>
+                <p style="margin: 10px 0 0 0; opacity: 0.8;">Click here or drag & drop your video anywhere</p>
+            </div>
             <input type="file" id="fileInput" accept="video/*">
-            <button id="uploadButton">Upload Video</button>
-            <div id="instructions">
-                <h2><b>INSTRUCTIONS - PLEASE READ</b></h2>
-                <p>Start with the display in landscape orientation. At any point you can refresh the browser to start the setup process again.</p>
-                <br>
-                <p>1. Open the Betterjoy app (🎮 Controller icon in bottom bar)</p>
-                <br>
-                <p>2. Wake the Joycon controller by pressing any button.</p>
-                <br>
-                <p>3. Betterjoy will show a green box when the controller has connected.</p>
-                <br>
-                <p>4. Press the minus button once (top left of controller). Rotating the controller should now move the mouse.</p>
-                <br>
-                <p>5. Plug the Joycon into its charger if it wasn't already. Then press the 'Calibrate' button in the Betterjoy software. Wait for the confirmation that the calibration has been successful. (Calibrating should only need to be done for the first setup, not every day).</p>
-                <br>
-                <p>6. Use the 'Upload Video' button to add the video from the desktop.</p>
-                <br>
-                <p>7. Press the 'Fullscreen' button. Then click the 'Enable Rotation' button. After 5 seconds the UI will hide itself.</p>
-                <br>
-                <p>8. You can now turn off the mouse and let the video run. It will play in a loop until it is stopped.</p>
-                <br>
-                <p>To stop the video you can click anywhere on the screen to bring the UI back. You can also click the 'Reset Rotation' button if you need to orient the video correctly the first time. The Betterjoy app can be annoying and not reopen if it's been closed. You can force close the app using task manager or restart the PC if this happens.</p>
+        </div>
+    </div>
+
+    <div id="setupOverlay">
+        <div id="setupContent">
+            <div class="setup-step active" id="step1">
+                <h2>🔌 Connect Your Sensor</h2>
+                <ul>
+                    <li>Press the button on the blue sensor (Attached to PC in HDMI)</li>
+                    <li>There is a light on the sensor that will start blinking green</li>
+                    <li>Press the 'Connect Sensor' button below to pair the sensor</li>
+                    <li>It can take a moment before the device appears (WT901BLE67)</li>
+		<li>If pairing fails click 'Reconnect Sensor' on next screen</li>
+                </ul>
+                <div class="setup-buttons">
+                    <button id="connectSensorButton" class="control-button active">Connect Sensor</button>
+                </div>
             </div>
         </div>
     </div>
    
     <div id="controls">
-        <button id="toggleRotationButton" class="control-button">Enable Rotation</button>
-        <button id="resetButton" class="control-button">Reset Rotation</button>
-        <button id="fullscreenButton" class="control-button">Fullscreen</button>
+        <button id="fullscreenButton" class="control-button tooltip" data-tooltip="Enter fullscreen mode">
+            🖥️ Fullscreen
+        </button>
+        <button id="recalibrateButton" class="control-button tooltip" data-tooltip="Optional - Zero Sensor Position" disabled>
+            🎯 Recalibrate
+        </button>
+        <button id="reconnectSensorButton" class="control-button tooltip" data-tooltip="Reconnect to sensor" disabled>
+            🔄 Reconnect Sensor
+        </button>
+        <button id="helpButton" class="control-button help-button tooltip" data-tooltip="Get help and tips">
+            ❓ Help
+        </button>
     </div>
-   
-    <div id="sensitivityControl">
-        <label id="sensitivityLabel">Rotation Speed: 0.2</label>
-        <input type="range" id="sensitivitySlider" min="0.1" max="1.0" step="0.1" value="0.2">
+
+    <div id="statusPanel">
+        <div class="status-item">
+            <span class="status-label">Video Rotation</span>
+            <span class="status-value" id="rotationDisplay" style="background: rgba(255, 255, 255, 0.2);">0°</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Sensor</span>
+            <span class="status-value status-disconnected" id="sensorStatus">Disconnected</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Sensor Angle</span>
+            <span class="status-value" id="sensorAngleDisplay" style="background: rgba(255, 255, 255, 0.2);">0°</span>
+        </div>
     </div>
-   
-    <div id="rotationInfo">Rotation: 0°</div>
-    <div id="pointerLockMessage">Pointer Locked: No</div>
-    <div id="deviceInfo">Device: Desktop</div>
+
+    <div id="helpOverlay">
+        <div id="helpContent">
+            <button class="close-help" id="closeHelp">×</button>
+            <h2>📖 How to Use the Motion-Controlled Video Player</h2>
+            
+            <h3>Setup</h3>
+            <ul>
+                <li>You can refresh the page at any time if anything doesn't work as expected</li>
+                <li>Follow the tutorial to select the video and pair your sensor</li>
+                <li>Keep the sensor plugged into the PC to keep it powered (It will last up to 8 hours if it's unplugged)</li>
+            </ul>
+
+            <h3>🎮 Controlling the Video</h3>
+            <ul>
+                <li>Tilt the sensor - the video will rotate in real-time as the sensor rotates</li>
+            </ul>
+
+            <h3>🔧 Features</h3>
+            <ul>
+                <li>Calibration - Sets the current sensor orientation as 0° rotation (Not a requirement)</li>
+                <li>Auto-snap - If the video is within 15 degrees of 0°, 90°, 180°, 270° it will auto level to avoid drifting out of position</li>
+                <li>Fullscreen mode - The UI automatically hides after 5 seconds</li>
+                <li>Status display - Shows current rotation angle and sensor connection status</li>
+            </ul>
+
+            <h3>🔍 Troubleshooting</h3>
+            <ul>
+                <li>Can't find the sensor? The sensor is attached to the PC that is plugged into the HDMI port on the back of the TV</li>
+                <li>Can't connect sensor? Press the button on the sensor once to wake it</li>
+                <li>Video orientation not matching the sensor? Recalibrate the sensor or refresh the page</li>
+		<li>Video not playing? Snapping the page can cause the video to break. Refresh the page and start again</li>
+            </ul>
+
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <ul>
+                <li>F11 - Toggle fullscreen mode</li>
+                <li>Escape - Exit fullscreen mode</li>
+            </ul>
+        </div>
+    </div>
    
     <script>
         const videoElement = document.getElementById('videoElement');
-        const uploadOverlay = document.getElementById('uploadOverlay');
-        const uploadButton = document.getElementById('uploadButton');
+        const welcomeOverlay = document.getElementById('welcomeOverlay');
+        const setupOverlay = document.getElementById('setupOverlay');
+        const helpOverlay = document.getElementById('helpOverlay');
+        const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-        const toggleRotationButton = document.getElementById('toggleRotationButton');
-        const resetButton = document.getElementById('resetButton');
         const fullscreenButton = document.getElementById('fullscreenButton');
-        const sensitivitySlider = document.getElementById('sensitivitySlider');
-        const sensitivityLabel = document.getElementById('sensitivityLabel');
-        const rotationInfo = document.getElementById('rotationInfo');
-        const pointerLockMessage = document.getElementById('pointerLockMessage');
-        const deviceInfo = document.getElementById('deviceInfo');
+        const reconnectSensorButton = document.getElementById('reconnectSensorButton');
+        const helpButton = document.getElementById('helpButton');
+        const closeHelp = document.getElementById('closeHelp');
+        const recalibrateButton = document.getElementById('recalibrateButton');
+        const rotationDisplay = document.getElementById('rotationDisplay');
+        const sensorStatus = document.getElementById('sensorStatus');
+        const sensorAngleDisplay = document.getElementById('sensorAngleDisplay');
         const controls = document.getElementById('controls');
-        const sensitivityControl = document.getElementById('sensitivityControl');
+        const statusPanel = document.getElementById('statusPanel');
         const body = document.body;
-        const videoContainer = document.getElementById('videoContainer');
-       
+        const connectSensorButton = document.getElementById('connectSensorButton');
+
+        let currentStep = 1;
         let rotationAngle = 0;
         let rotationEnabled = false;
-        let sensitivity = 0.2;
-        let mouseX = 0;
-        let lastMouseX = null;
-        let lastMouseMoveTime = null;
+        let sensitivity = 10.3;
+        let lastAngleY = 0;
+        let calibrationOffset = 0;
         let isSnapping = false;
         let targetSnapAngle = null;
         let snapStartAngle = null;
         let snapStartTime = null;
-        let isMouseMoving = false;
-        let mouseMovementDelta = 0;
+        let isRotating = false;
+        let lastRotationTime = null;
         const snapThreshold = 15;
         const snapDelay = 2000;
         const snapDuration = 500;
         const targetAngles = [0, 90, 180, 270, 360];
-        const mouseStopTimeout = 100;
+        const rotationStopTimeout = 100;
         let hideUITimeout = null;
         let uiHidden = false;
-        let pointerLocked = false;
-        let lastUpdateTime = null;
-        let isMobile = false;
-        let lastAlpha = null;
-        let lastBeta = null;
-        let lastGamma = null;
-        let screenOrientation = window.screen.orientation ? window.screen.orientation.type : null;
-        let gyroAvailable = false;
-        
-        function detectMobile() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        let sensorConnected = false;
+        let bluetoothDevice = null;
+        let characteristic = null;
+        let tempBytes = [];
+        let sensorAngleY = 0;
+        let rawSensorAngleY = 0;
+        let deadzone = 0.05;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 3;
+        const reconnectInterval = 5000;
+        let dataPacketCount = 0;
+        const minPacketsForCalibration = 5;
+
+        const TARGET_DEVICE_NAME = 'WT901BLE67';
+        const CHARACTERISTIC_UUID_READ = "0000ffe4-0000-1000-8000-00805f9a34fb";
+        const CHARACTERISTIC_UUID_WRITE = "0000ffe9-0000-1000-8000-00805f9a34fb";
+        const SERVICE_UUID = "0000ffe5-0000-1000-8000-00805f9a34fb";
+
+        function showUI() {
+            uiHidden = false;
+            body.classList.remove('ui-hidden');
+            controls.classList.remove('ui-hidden');
+            statusPanel.classList.remove('ui-hidden');
         }
-        
-        isMobile = detectMobile();
-        deviceInfo.textContent = `Device: ${isMobile ? 'Mobile' : 'Desktop'}`;
-        
-        if (isMobile) {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', handleOrientation, true);
-                gyroAvailable = true;
+
+        function hideUI() {
+            if (document.fullscreenElement) {
+                uiHidden = true;
+                body.classList.add('ui-hidden');
+                controls.classList.add('ui-hidden');
+                statusPanel.classList.add('ui-hidden');
             }
         }
-        
-        window.addEventListener('orientationchange', function() {
-            if (window.screen.orientation) {
-                screenOrientation = window.screen.orientation.type;
+
+        function resetUITimeout() {
+            if (hideUITimeout) {
+                clearTimeout(hideUITimeout);
             }
-            lastAlpha = null;
-            lastBeta = null;
-            lastGamma = null;
+            
+            if (document.fullscreenElement) {
+                showUI();
+                hideUITimeout = setTimeout(() => {
+                    hideUI();
+                }, 5000);
+            }
+        }
+
+        document.addEventListener('mousemove', resetUITimeout);
+        document.addEventListener('click', resetUITimeout);
+        document.addEventListener('keydown', resetUITimeout);
+        document.addEventListener('touchstart', resetUITimeout);
+
+        function showStep(step) {
+            document.querySelectorAll('.setup-step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step${step}`).classList.add('active');
+            currentStep = step;
+        }
+
+        function setupDragAndDrop() {
+            document.addEventListener('dragover', (e) => {
+                if (welcomeOverlay.style.display !== 'none') {
+                    e.preventDefault();
+                    welcomeOverlay.classList.add('drag-over');
+                }
+            });
+
+            document.addEventListener('dragleave', (e) => {
+                if (welcomeOverlay.style.display !== 'none') {
+                    welcomeOverlay.classList.remove('drag-over');
+                }
+            });
+
+            document.addEventListener('drop', (e) => {
+                if (welcomeOverlay.style.display !== 'none') {
+                    e.preventDefault();
+                    welcomeOverlay.classList.remove('drag-over');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && files[0].type.startsWith('video/')) {
+                        handleVideoFile(files[0]);
+                    }
+                }
+            });
+        }
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                handleVideoFile(e.target.files[0]);
+            }
         });
-        
-        function getScreenOrientation() {
-            if (window.screen.orientation) {
-                return window.screen.orientation.type;
-            } else if (window.orientation !== undefined) {
-                switch (window.orientation) {
-                    case 0:
-                        return 'portrait-primary';
-                    case 90:
-                        return 'landscape-primary';
-                    case -90:
-                        return 'landscape-secondary';
-                    case 180:
-                        return 'portrait-secondary';
-                    default:
-                        return 'portrait-primary';
+
+        function handleVideoFile(file) {
+            const videoURL = URL.createObjectURL(file);
+            videoElement.src = videoURL;
+            welcomeOverlay.style.display = 'none';
+            setupOverlay.style.display = 'flex';
+        }
+
+        connectSensorButton.addEventListener('click', async () => {
+            reconnectAttempts = 0;
+            await attemptConnection();
+        });
+
+        reconnectSensorButton.addEventListener('click', async () => {
+            reconnectAttempts = 0;
+            if (sensorConnected && bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+            }
+            sensorConnected = false;
+            bluetoothDevice = null;
+            characteristic = null;
+            await attemptConnection();
+        });
+
+        helpButton.addEventListener('click', () => {
+            helpOverlay.style.display = 'flex';
+        });
+
+        closeHelp.addEventListener('click', () => {
+            helpOverlay.style.display = 'none';
+        });
+
+        helpOverlay.addEventListener('click', (e) => {
+            if (e.target === helpOverlay) {
+                helpOverlay.style.display = 'none';
+            }
+        });
+
+        function getSignInt16(num) {
+            if (num >= Math.pow(2, 15)) {
+                num -= Math.pow(2, 16);
+            }
+            return num;
+        }
+
+        function resetSensorState() {
+            rawSensorAngleY = 0;
+            sensorAngleY = 0;
+            lastAngleY = 0;
+            calibrationOffset = 0;
+            rotationAngle = 0;
+            isSnapping = false;
+            targetSnapAngle = null;
+            snapStartAngle = null;
+            snapStartTime = null;
+            isRotating = false;
+            lastRotationTime = null;
+            dataPacketCount = 0;
+            videoElement.style.transform = `rotate(0deg)`;
+            rotationDisplay.textContent = '0°';
+            sensorAngleDisplay.textContent = '0.0°';
+        }
+
+        function parseDataPacket(bytesData) {
+            if (bytesData[1] === 0x61) {
+                rawSensorAngleY = getSignInt16(bytesData[17] << 8 | bytesData[16]) / 32768 * 180;
+                sensorAngleY = rawSensorAngleY - calibrationOffset;
+                sensorAngleY = Math.round(sensorAngleY * 1000) / 1000;
+                sensorAngleDisplay.textContent = `${sensorAngleY.toFixed(1)}°`;
+                dataPacketCount++;
+                if (dataPacketCount >= minPacketsForCalibration && !calibrationOffset) {
+                    calibrateSensor();
+                }
+                controlRotation(sensorAngleY);
+            }
+        }
+
+        function controlRotation(angleY) {
+            if (!rotationEnabled || isSnapping) return;
+            
+            let angleDiff = angleY - lastAngleY;
+            angleDiff = ((angleDiff + 180) % 360 - 180);
+            if (Math.abs(angleDiff) > deadzone) {
+                const delta = angleDiff * 1.0;
+                updateRotation(delta);
+                isRotating = true;
+                lastRotationTime = Date.now();
+            }
+            lastAngleY = angleY;
+        }
+
+        function onDataReceived(event) {
+            const data = new Uint8Array(event.target.value.buffer);
+            
+            for (let byte of data) {
+                tempBytes.push(byte);
+                
+                if (tempBytes.length === 1 && tempBytes[0] !== 0x55) {
+                    tempBytes.shift();
+                    continue;
+                }
+                
+                if (tempBytes.length === 2 && (tempBytes[1] !== 0x61 && tempBytes[1] !== 0x71)) {
+                    tempBytes.shift();
+                    continue;
+                }
+                
+                if (tempBytes.length === 20) {
+                    parseDataPacket(tempBytes);
+                    tempBytes = [];
                 }
             }
-            return 'portrait-primary';
         }
-        
-        function handleOrientation(event) {
-            if (!rotationEnabled || !isMobile) return;
+
+        function updateSensorStatus(status, className) {
+            sensorStatus.textContent = status;
+            sensorStatus.className = `status-value ${className}`;
+            reconnectSensorButton.disabled = className === 'status-connected';
+        }
+
+        function calibrateSensor() {
+            if (!sensorConnected) return;
             
-            const now = Date.now();
+            calibrationOffset = rawSensorAngleY;
+            sensorAngleY = 0;
+            lastAngleY = 0;
+            rotationAngle = 0;
             
-            if (event.alpha === null && event.beta === null && event.gamma === null) {
+            videoElement.style.transition = 'transform 0.3s ease-out';
+            videoElement.style.transform = `rotate(0deg)`;
+            rotationDisplay.textContent = '0°';
+            sensorAngleDisplay.textContent = '0.0°';
+            
+            recalibrateButton.textContent = '✓ Calibrated!';
+            
+            setTimeout(() => {
+                recalibrateButton.textContent = '🎯 Recalibrate';
+            }, 1500);
+        }
+
+        async function attemptConnection() {
+            if (!navigator.bluetooth) {
+                updateSensorStatus('Bluetooth Not Available', 'status-disconnected');
                 return;
             }
-            
-            const currentOrientation = getScreenOrientation();
-            let rotationValue;
-            
-            if (currentOrientation.includes('landscape')) {
-                rotationValue = event.gamma || 0;
-                if (lastGamma === null) {
-                    lastGamma = rotationValue;
-                    return;
+
+            try {
+                updateSensorStatus('Connecting...', 'status-connecting');
+                connectSensorButton.textContent = 'Connecting...';
+                connectSensorButton.disabled = true;
+                reconnectSensorButton.textContent = 'Connecting...';
+                reconnectSensorButton.disabled = true;
+
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: TARGET_DEVICE_NAME }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                if (device && device.name === TARGET_DEVICE_NAME) {
+                    bluetoothDevice = device;
+                    bluetoothDevice.addEventListener('gattserverdisconnected', handleDisconnect);
+                    await connectToDevice();
+                    connectSensorButton.textContent = '✓ Connected!';
+                    reconnectSensorButton.textContent = '🔄 Reconnect Sensor';
+                    setTimeout(() => {
+                        setupOverlay.style.display = 'none';
+                    }, 1000);
                 }
-                
-                let gammaDelta = lastGamma - rotationValue;
-                
-                if (Math.abs(gammaDelta) > 0.1) {
-                    const delta = gammaDelta * sensitivity * 2;
-                    updateRotation(delta);
-                    lastGamma = rotationValue;
-                    lastUpdateTime = now;
-                    isMouseMoving = true;
-                    lastMouseMoveTime = now;
-                }
-            } else {
-                rotationValue = event.beta || 0;
-                if (lastBeta === null) {
-                    lastBeta = rotationValue;
-                    return;
-                }
-                
-                let betaDelta = lastBeta - rotationValue;
-                
-                if (Math.abs(betaDelta) > 0.1) {
-                    const delta = betaDelta * sensitivity * 2;
-                    updateRotation(delta);
-                    lastBeta = rotationValue;
-                    lastUpdateTime = now;
-                    isMouseMoving = true;
-                    lastMouseMoveTime = now;
-                }
+            } catch (error) {
+                updateSensorStatus('Connection Failed', 'status-disconnected');
+                connectSensorButton.textContent = 'Retry Connection';
+                connectSensorButton.disabled = false;
+                reconnectSensorButton.textContent = '🔄 Reconnect Sensor';
+                reconnectSensorButton.disabled = false;
             }
         }
-        
-        uploadButton.addEventListener('click', () => {
-            fileInput.click();
-        });
-       
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const videoURL = URL.createObjectURL(file);
-                videoElement.src = videoURL;
-                videoElement.load();
-               
-                videoElement.addEventListener('loadedmetadata', () => {
-                    videoElement.play().catch((err) => {
-                        console.error('Error playing video:', err);
-                    });
-                    uploadOverlay.style.display = 'none';
-                }, { once: true });
+
+        async function handleDisconnect() {
+            if (!sensorConnected) return;
+            sensorConnected = false;
+            characteristic = null;
+            updateSensorStatus('Disconnected', 'status-disconnected');
+            rotationEnabled = false;
+            recalibrateButton.disabled = true;
+
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                updateSensorStatus('Reconnecting...', 'status-connecting');
+                resetSensorState();
+                setTimeout(async () => {
+                    try {
+                        await connectToDevice();
+                    } catch (error) {
+                        if (reconnectAttempts >= maxReconnectAttempts) {
+                            updateSensorStatus('Disconnected', 'status-disconnected');
+                            reconnectSensorButton.disabled = false;
+                        }
+                    }
+                }, reconnectInterval);
+            } else {
+                updateSensorStatus('Disconnected', 'status-disconnected');
+                reconnectSensorButton.disabled = false;
             }
-        });
-       
+        }
+
+        async function connectToDevice() {
+            if (!bluetoothDevice || sensorConnected) return;
+
+            try {
+                const server = await bluetoothDevice.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_READ);
+                
+                await characteristic.startNotifications();
+                characteristic.addEventListener('characteristicvaluechanged', onDataReceived);
+
+                const writeCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_WRITE);
+                
+                sensorConnected = true;
+                reconnectAttempts = 0;
+                updateSensorStatus('Connected', 'status-connected');
+                recalibrateButton.disabled = false;
+                rotationEnabled = true;
+
+                resetSensorState();
+
+                const startReading = async () => {
+                    if (!sensorConnected) return;
+                    
+                    try {
+                        await writeCharacteristic.writeValue(new Uint8Array([0xff, 0xaa, 0x27, 0x3A, 0]));
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        await writeCharacteristic.writeValue(new Uint8Array([0xff, 0xaa, 0x27, 0x51, 0]));
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    } catch (error) {
+                        sensorConnected = false;
+                        updateSensorStatus('Disconnected', 'status-disconnected');
+                        if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                            bluetoothDevice.gatt.disconnect();
+                        }
+                        bluetoothDevice = null;
+                        characteristic = null;
+                        handleDisconnect();
+                    }
+                    
+                    if (sensorConnected) {
+                        setTimeout(startReading, 400);
+                    }
+                };
+
+                startReading();
+
+            } catch (error) {
+                sensorConnected = false;
+                updateSensorStatus('Connection Failed', 'status-disconnected');
+                if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                    bluetoothDevice.gatt.disconnect();
+                }
+                bluetoothDevice = null;
+                characteristic = null;
+                handleDisconnect();
+            }
+        }
+
         function updateRotation(delta) {
             rotationAngle += delta;
             const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
             videoElement.style.transition = isSnapping ? 'none' : 'transform 0.1s ease-out';
             videoElement.style.transform = `rotate(${rotationAngle}deg)`;
-            rotationInfo.textContent = `Rotation: ${Math.round(normalizedAngle)}°`;
+            rotationDisplay.textContent = `${Math.round(normalizedAngle)}°`;
         }
-       
-        const pointerLockSupported = 'pointerLockElement' in document ||
-                                    'mozPointerLockElement' in document ||
-                                    'webkitPointerLockElement' in document;
-       
-        function requestPointerLock() {
-            if (pointerLockSupported && !isMobile) {
-                videoContainer.requestPointerLock = videoContainer.requestPointerLock ||
-                                                 videoContainer.mozRequestPointerLock ||
-                                                 videoContainer.webkitRequestPointerLock;
-                videoContainer.requestPointerLock();
-            }
-        }
-       
-        function exitPointerLock() {
-            if (pointerLockSupported && !isMobile) {
-                document.exitPointerLock = document.exitPointerLock ||
-                                          document.mozExitPointerLock ||
-                                          document.webkitExitPointerLock;
-                document.exitPointerLock();
-            }
-        }
-       
-        function handlePointerLockChange() {
-            if (!isMobile) {
-                if (document.pointerLockElement === videoContainer ||
-                    document.mozPointerLockElement === videoContainer ||
-                    document.webkitPointerLockElement === videoContainer) {
-                    pointerLocked = true;
-                    pointerLockMessage.textContent = 'Pointer Locked: Yes';
-                    document.addEventListener('mousemove', handleLockedMouseMove, false);
-                } else {
-                    pointerLocked = false;
-                    pointerLockMessage.textContent = 'Pointer Locked: No';
-                    document.removeEventListener('mousemove', handleLockedMouseMove, false);
-                   
-                    if (uiHidden) {
-                        showUI();
-                    }
-                }
-            }
-        }
-       
-        function handlePointerLockError() {
-            if (!isMobile) {
-                console.error('Error requesting pointer lock');
-                pointerLockMessage.textContent = 'Pointer Lock Failed';
-            }
-        }
-       
-        document.addEventListener('pointerlockchange', handlePointerLockChange, false);
-        document.addEventListener('mozpointerlockchange', handlePointerLockChange, false);
-        document.addEventListener('webkitpointerlockchange', handlePointerLockChange, false);
-        document.addEventListener('pointerlockerror', handlePointerLockError, false);
-        document.addEventListener('mozpointerlockerror', handlePointerLockError, false);
-        document.addEventListener('webkitpointerlockerror', handlePointerLockError, false);
-       
-        function handleLockedMouseMove(e) {
-            if (isMobile) return;
-            
-            const now = Date.now();
-           
-            mouseMovementDelta = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-           
-            lastMouseMoveTime = now;
-            isMouseMoving = true;
-           
-            if (rotationEnabled && !isSnapping) {
-                const delta = mouseMovementDelta * sensitivity * 0.5;
-                lastUpdateTime = now;
-               
-                if (mouseMovementDelta !== 0) {
-                    updateRotation(delta);
-                }
-            }
-        }
-       
-        document.addEventListener('mousemove', (e) => {
-            if (isMobile) return;
-            
-            if (!pointerLocked) {
-                const now = Date.now();
-               
-                if (lastMouseX !== null) {
-                    mouseMovementDelta = e.movementX || e.clientX - lastMouseX;
-                }
-               
-                mouseX = e.clientX;
-                lastMouseMoveTime = now;
-                isMouseMoving = true;
-               
-                if (rotationEnabled && !isSnapping) {
-                    if (lastMouseX === null) {
-                        lastMouseX = mouseX;
-                        lastUpdateTime = now;
-                        return;
-                    }
-                   
-                    const delta = mouseMovementDelta * sensitivity * 0.5;
-                    lastMouseX = mouseX;
-                    lastUpdateTime = now;
-                   
-                    if (mouseMovementDelta !== 0) {
-                        updateRotation(delta);
-                    }
-                }
-            }
-        });
-       
-        document.addEventListener('mouseleave', () => {
-            if (!isMobile && rotationEnabled && !pointerLocked) {
-                isMouseMoving = false;
-            }
-        });
-       
-        setInterval(() => {
-            const now = Date.now();
-            if (lastMouseMoveTime && now - lastMouseMoveTime > mouseStopTimeout) {
-                isMouseMoving = false;
-                mouseMovementDelta = 0;
-            }
-        }, 50);
-       
-        function hideUI() {
-            if (!uiHidden) {
-                uiHidden = true;
-                body.classList.add('hide-cursor');
-                controls.classList.add('hidden');
-                sensitivityControl.classList.add('hidden');
-                rotationInfo.classList.add('hidden');
-                pointerLockMessage.classList.add('hidden');
-                deviceInfo.classList.add('hidden');
-               
-                if (rotationEnabled && !pointerLocked && !isMobile) {
-                    requestPointerLock();
-                }
-            }
-        }
-       
-        function showUI() {
-            if (uiHidden) {
-                uiHidden = false;
-                body.classList.remove('hide-cursor');
-                controls.classList.remove('hidden');
-                sensitivityControl.classList.remove('hidden');
-                rotationInfo.classList.remove('hidden');
-                pointerLockMessage.classList.remove('hidden');
-                deviceInfo.classList.remove('hidden');
-               
-                if (pointerLocked && !isMobile) {
-                    exitPointerLock();
-                }
-               
-                if (rotationEnabled) {
-                    if (hideUITimeout) {
-                        clearTimeout(hideUITimeout);
-                    }
-                    hideUITimeout = setTimeout(hideUI, 5000);
-                }
-            }
-        }
-       
-        document.addEventListener('click', () => {
-            if (uiHidden || pointerLocked) {
-                showUI();
-            }
-        });
-        
-        document.addEventListener('touchstart', () => {
-            if (uiHidden) {
-                showUI();
-            }
-        });
-       
-        toggleRotationButton.addEventListener('click', () => {
-            rotationEnabled = !rotationEnabled;
-            if (rotationEnabled) {
-                toggleRotationButton.textContent = 'Disable Rotation';
-                toggleRotationButton.classList.add('active');
-                lastMouseX = null;
-                lastUpdateTime = null;
-                lastAlpha = null;
-                lastBeta = null;
-                lastGamma = null;
-               
-                if (hideUITimeout) {
-                    clearTimeout(hideUITimeout);
-                }
-                hideUITimeout = setTimeout(hideUI, 5000);
-            } else {
-                toggleRotationButton.textContent = 'Enable Rotation';
-                toggleRotationButton.classList.remove('active');
-                isMouseMoving = false;
-               
-                if (pointerLocked && !isMobile) {
-                    exitPointerLock();
-                }
-               
-                if (hideUITimeout) {
-                    clearTimeout(hideUITimeout);
-                    hideUITimeout = null;
-                }
-               
-                if (uiHidden) {
-                    showUI();
-                }
-            }
-        });
-       
+
         function checkForSnap() {
-            if (!rotationEnabled || isSnapping || isMouseMoving) return;
-           
+            if (!rotationEnabled || isSnapping || isRotating) return;
+            
             const now = Date.now();
-            if (lastMouseMoveTime && (now - lastMouseMoveTime >= snapDelay)) {
+            if (lastRotationTime && (now - lastRotationTime >= snapDelay)) {
                 const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
                 let closestAngle = null;
                 let minDiff = Infinity;
-               
+                
                 targetAngles.forEach(angle => {
                     const diff = Math.abs(((normalizedAngle - angle) % 360 + 540) % 360 - 180);
                     if (diff < snapThreshold && diff < minDiff) {
@@ -662,37 +984,37 @@
                         minDiff = diff;
                     }
                 });
-               
+                
                 if (closestAngle !== null) {
                     isSnapping = true;
                     targetSnapAngle = closestAngle;
                     snapStartAngle = rotationAngle;
                     snapStartTime = now;
-                   
+                    
                     const normalizedCurrent = normalizedAngle;
                     let delta = closestAngle - normalizedCurrent;
                     if (delta > 180) delta -= 360;
                     if (delta < -180) delta += 360;
                     const targetRotation = rotationAngle + delta;
-                   
+                    
                     animateSnap(targetRotation);
                 }
             }
         }
-       
+
         function animateSnap(targetRotation) {
             const now = Date.now();
             const elapsed = now - snapStartTime;
             const progress = Math.min(elapsed / snapDuration, 1);
             const easedProgress = 1 - Math.pow(1 - progress, 4);
-           
+            
             rotationAngle = snapStartAngle + (targetRotation - snapStartAngle) * easedProgress;
             const normalizedAngle = ((rotationAngle % 360) + 360) % 360;
-           
+            
             videoElement.style.transition = 'none';
             videoElement.style.transform = `rotate(${rotationAngle}deg)`;
-            rotationInfo.textContent = `Rotation: ${Math.round(normalizedAngle)}°`;
-           
+            rotationDisplay.textContent = `${Math.round(normalizedAngle)}°`;
+            
             if (progress < 1) {
                 requestAnimationFrame(() => animateSnap(targetRotation));
             } else {
@@ -701,49 +1023,65 @@
                 videoElement.style.transition = 'transform 0.1s ease-out';
             }
         }
-       
-        setInterval(checkForSnap, 100);
-       
-        resetButton.addEventListener('click', () => {
-            rotationAngle = 0;
-            videoElement.style.transition = 'transform 0.1s ease-out';
-            videoElement.style.transform = `rotate(0deg)`;
-            rotationInfo.textContent = `Rotation: 0°`;
-            isSnapping = false;
-            isMouseMoving = false;
-            lastAlpha = null;
-            lastBeta = null;
-            lastGamma = null;
-        });
-       
+
+        recalibrateButton.addEventListener('click', calibrateSensor);
+
         fullscreenButton.addEventListener('click', () => {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch((err) => {
-                    console.error('Error entering fullscreen:', err);
                 });
-                fullscreenButton.textContent = 'Exit Fullscreen';
+                fullscreenButton.innerHTML = '🔲 Exit Fullscreen';
             } else {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
-                    fullscreenButton.textContent = 'Fullscreen';
+                    fullscreenButton.innerHTML = '🖥️ Fullscreen';
                 }
             }
         });
-       
-        sensitivitySlider.addEventListener('input', (e) => {
-            sensitivity = parseFloat(e.target.value);
-            sensitivityLabel.textContent = `Rotation Speed: ${sensitivity.toFixed(1)}`;
-        });
-       
-        videoElement.addEventListener('ended', () => {
-            videoElement.play();
-        });
-       
+
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement) {
-                fullscreenButton.textContent = 'Fullscreen';
-                isMouseMoving = false;
+                fullscreenButton.innerHTML = '🖥️ Fullscreen';
+                body.classList.remove('fullscreen');
+                showUI();
+                if (hideUITimeout) {
+                    clearTimeout(hideUITimeout);
+                    hideUITimeout = null;
+                }
+            } else {
+                body.classList.add('fullscreen');
+                resetUITimeout();
+                fullscreenButton.innerHTML = '🔲 Exit Fullscreen';
             }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F11') {
+                e.preventDefault();
+                fullscreenButton.click();
+            } else if (e.key === 'Escape' && helpOverlay.style.display === 'flex') {
+                helpOverlay.style.display = 'none';
+            }
+        });
+
+        setInterval(() => {
+            const now = Date.now();
+            if (lastRotationTime && now - lastRotationTime > rotationStopTimeout) {
+                isRotating = false;
+            }
+        }, 50);
+
+        setInterval(checkForSnap, 100);
+
+        window.addEventListener('load', () => {
+            if (!navigator.bluetooth) {
+                updateSensorStatus('Bluetooth Not Supported', 'status-disconnected');
+                reconnectSensorButton.disabled = false;
+            } else {
+                updateSensorStatus('Ready to Connect', 'status-disconnected');
+                reconnectSensorButton.disabled = false;
+            }
+            setupDragAndDrop();
         });
     </script>
 </body>
